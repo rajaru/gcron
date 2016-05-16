@@ -40,6 +40,7 @@ function Cron(schedule, callback, lastTime){
 	this.ranges = [[],[],[],[],[]];
 	this.lastTime = lastTime || moment();
 	this.stopped  = false;
+	this.onTickCB = callback;
 	this._parse(schedule);
 	this.scheduleAt(this._nextSchedule());
 	return this;

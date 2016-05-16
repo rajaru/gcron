@@ -7,6 +7,7 @@ function countTicks(schedule, count, wait, desc){
 	desc = desc || 'should run every';
 	it(desc+' ('+schedule+')', function(done) {
 		var job = new cron.cron(schedule, function() {
+			console.log('ticked @'+moment().format());
 			count--;
 		});
 		this.timeout(wait);
@@ -37,8 +38,8 @@ function countTicksExact(schedule, count, wait, curTime, desc){
 
 
 describe('cron', function(){
-	//countTicks('* * * * *',   2, 2.5*60*1000, 'should run every minute' );
-	//countTicks('*/1 * * * *', 3, 3.5*60*1000, 'should run every minute' );
+	countTicks('* * * * *',   2, 2.5*60*1000, 'should run every minute' );
+	countTicks('*/1 * * * *', 3, 3.5*60*1000, 'should run every minute' );
 	//countTicks('*/2 * * * *', 1, 3.5*60*1000, 'should run every two minutes' );
 	//countTicks('61 * * * *', 0, 1*60*1000, 'should work with invalid times' );
 
@@ -54,5 +55,5 @@ describe('cron', function(){
 	//countTicksExact('0 0 2-3 * *', 1, 1.1*60*1000, curMoment,'second & third of every month' );
 
 	curMoment = moment({year: 2016, month: 0, date: 1, hour: 0, minute: 59, second: 55});
-	countTicksExact('1,2,3 1,2,3 * * *', 1, 4*60*60*1000, null, 'multiple ranges' );
+	//countTicksExact('1,2,3 1,2,3 * * *', 1, 4*60*60*1000, null, 'multiple ranges' );
 });
