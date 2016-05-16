@@ -3,12 +3,35 @@ gcron
 Cron like scheduler for Node, with one (minor?) difference.
 When used with steps that do not properly divide 60 (or 12 for months), Cron
 rounds off the values to 0 when it exceeds that current limit. This library, on
-the other hand, will continue stepping through original values. For example,
-*/7 * * * * will start from current minute and keep adding 7, wrapping arround
+the other hand, will continue stepping through original values.
+For example,
+*/7 * * * * will start from current minute and keep adding 7, wrapping around
 to next minute, continuing with what is left from previous minute. This is useful
 when repeated alarms are set.
+
 One exception to the above is when you use multiple repeats or list/ranges for
 higher units (in that case lower units are reset to their start values).
+
+Repeat steps are supported, as long as they are within the unit's boundaries
+Ex: */7 * * * *
+Callback is called at 7,14,21 etc minutes of every hour
+
+Lists are supported where a comma separated ordered numbers can be provided as
+possible values for any units
+Ex: 1,7,9 * * * *
+Callback is called at 1,7 and 9th minute of every hour
+
+Ranges are supported where initial number (positive integer) and final number
+are provided, separated by '-'
+Ex: 4-10 * * * *
+Callback is called for 4,5,6,7,8,9 and 10th minutes of every hour
+
+Lists and rages can be mixed
+Ex: 2,5,9-12 * * * *
+
+Ranges and repeats can be mixed together
+Ex: 2,5,9-24/3 * * * * => 2,5,9,12,15,18,21,24 * * * *
+
 
 ## Installation
     npm install gcron --save
