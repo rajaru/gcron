@@ -1,0 +1,27 @@
+{
+  "name": "gcron",
+  "version": "0.1.0",
+  "description": "Cron like scheduler for Node",
+  "main": "gcron.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rajaru/gcron.git"
+  },
+  "keywords": [
+    "cron",
+    "scheduler"
+  ],
+  "author": "Raja Raman",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rajaru/gcron/issues"
+  },
+  "homepage": "https://github.com/rajaru/gcron#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5"
+  }
+}
