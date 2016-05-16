@@ -11,7 +11,7 @@
  *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *  IN THE SOFTWARE. 
+ *  IN THE SOFTWARE.
  *
  *  Author: Raja Raman
  * 	v1.0 May-14-2016
@@ -20,6 +20,11 @@
  /* jshint node: true */
  'use strict';
 var moment = require('moment-timezone');
+
+var months = {
+	'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5, 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11,
+	'january': 0, 'february': 1, 'march': 2, 'april': 3, /*'may': 4,*/ 'june': 5, 'july': 6, 'august': 7, 'september': 8, 'october': 9, 'november': 10, 'december': 11,
+};
 
 //Constructor
 // schedule must have five elements and accepts following values
@@ -41,8 +46,10 @@ function Cron(schedule, callback, lastTime){
 	this.lastTime = lastTime || moment();
 	this.stopped  = false;
 	this.onTickCB = callback;
-	this._parse(schedule);
-	this.scheduleAt(this._nextSchedule());
+	if(schedule){
+		this._parse(schedule);
+		this.scheduleAt((this._next=this._nextSchedule()));
+	}
 	return this;
 }
 
@@ -51,12 +58,15 @@ Cron.prototype.stop = function(){
 	clearTimeout(this.timer);
 };
 
+Cron.prototype.next = function(){
+	return this._next;
+};
 
 Cron.prototype._tick = function(){
 	if(this.onTickCB)this.onTickCB();
 	if(this.stopped)return;    	//stop might have been called in the onTickCB
 	this.lastTime = moment();	//last tick time, we may have to move this up
-	this.scheduleAt(this._nextSchedule());
+	this.scheduleAt((this._next=this._nextSchedule()));
 };
 
 //javascript setTimeout treats the parameter as signed 32bit integer and has a
@@ -73,13 +83,18 @@ Cron.prototype._after = function(timems){
 };
 
 Cron.prototype.scheduleAt = function(nextTime){
-	console.log('scheduleAt: '+nextTime.format()+ '  after: '+(nextTime.diff(moment())/1000)+' seconds [now: '+moment().format()+']');
+	//console.log('scheduleAt: '+nextTime.format()+ '  after: '+(nextTime.diff(moment())/1000)+' seconds [now: '+moment().format()+']');
 	this._after(nextTime.diff(moment()));
 };
 
+Cron.prototype._fixMonths = function(str){
+	return str.toLowerCase().replace(/[A-Za-z]+/g, function(match){
+		return months[match];
+	});
+};
 
 Cron.prototype._parse = function(schedule){
-	var parts = schedule.split(' ');
+	var parts = this._fixMonths(schedule).split(' ');
 	if( parts.length!==5 )
 		throw new Error('Invalid schedule, 5 parts separated by space expected');
 
@@ -99,16 +114,16 @@ Cron.prototype._parse = function(schedule){
 			var list = parts[i].split(',');
 
 			for(var j=0; j<list.length; j++){
-                var reps  = list[j].split('/');
-                var step  = reps.length==2?+reps[1]:1;
+				var reps  = list[j].split('/');
+				var step  = reps.length==2?+reps[1]:1;
 				var range = reps[0].split('-');
-                
+
 				if( range.length===1 )
 					this.ranges[i].push(+range[0]);
 				else{
 					for(var k=+range[0]; k<=+range[1]; k+=step)
-                        this.ranges[i].push(k);
-                }
+						this.ranges[i].push(k);
+				}
 			}
 		}
 	}

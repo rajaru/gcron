@@ -36,6 +36,26 @@ function countTicksExact(schedule, count, wait, curTime, desc){
 	});
 }
 
+describe('utils', function(){
+	it('month names', function(done) {
+		var job = new cron.cron(null, function() {});
+		var str = job._fixMonths('1,jan,2');
+		expect(str).to.equal('1,0,2');
+		done();
+	});
+	it('all months', function(done) {
+		var job = new cron.cron(null, function() {});
+		var str = job._fixMonths('Jan-fEb-maR-apr-may-jun-jul-aug-sep-oct-nov-dec');
+		expect(str).to.equal('0-1-2-3-4-5-6-7-8-9-10-11');
+		done();
+	});
+	it('all months full', function(done) {
+		var job = new cron.cron(null, function() {});
+		var str = job._fixMonths('January-february-march-april-may-june-july-august-september-october-november-december');
+		expect(str).to.equal('0-1-2-3-4-5-6-7-8-9-10-11');
+		done();
+	});
+});
 
 describe('cron', function(){
 	countTicks('* * * * *',   2, 2.5*60*1000, 'should run every minute' );
