@@ -5,27 +5,18 @@
  *	License: Public domain
  *	You may do anything thats legal in your country with this code :-)
  *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *  IN THE SOFTWARE.
- *
  *  Author: Raja Raman
  * 	v1.0 May-14-2016
  */
 
  /* jshint node: true */
  'use strict';
-
 var moment = require('moment-timezone');
 
 //Constructor
 // schedule must have five elements and accepts following values
-// * every 1 units (day, month, year, hour, minute)
-// */n every n units (day, month, year, hour, minute)
+// * repeats every 1 unit (day, month, year, hour, minute)
+// */n repeats every n units (day, month, year, hour, minute)
 // n1,n2,n3..nn sorted list of absolute values (must be within the valid range of
 //  corresponding units, for ex month 0 to 11 )
 // n1-n2 a range of numbers from n1 to n2, inclusive
@@ -36,38 +27,27 @@ var moment = require('moment-timezone');
 //  get multiple calls until it reaches current time
 //
 function Cron(schedule, callback, lastTime){
-	this.schedule 	= schedule;
-	this.stopped 	= false;
-	this.lastTime 	= lastTime || moment();
-	this.onTickCB 	= callback;
-	if( schedule )
-		this.scheduleAt(this._nextSchedule());
+	this.starts = [0,0,1,0,0];
+	this.repeat = [0,0,0,0,0];
+	this.ranges = [[],[],[],[],[]];
+	this.lastTime = lastTime || moment();
+	this.stopped  = false;
+	this._parse(schedule);
+	this.scheduleAt(this._nextSchedule());
 	return this;
 }
 
-Cron.prototype.fixLastTime = function(last){
-    var next = this.schedule.split(' ').reverse();
-    //fix the ranges and lists
-    for(var i=4; i>=0; i--){
-        if(next[i].indexOf(',')>0||next[i].indexOf('-')>0){
-            var list = this._expandRange(next[i].split(','));
-            for(var j=0; j<list.length; j++)
-        		if( last[j] < list[j] ){
-        			last[j] = list[j];
-        			break;
-        		}
-
-        	//bump up the next element
-            //
-        	last[i] = list[0];
-        	if(i>0)last[i-1] ++;
-
-        }
-    }
+Cron.prototype.stop = function(){
+	this.stopped = true;
+	clearTimeout(this.timer);
 };
 
-Cron.prototype._dbg = function(){
-	console.log.apply(console, arguments);
+
+Cron.prototype._tick = function(){
+	if(this.onTickCB)this.onTickCB();
+	if(this.stopped)return;    	//stop might have been called in the onTickCB
+	this.lastTime = moment();	//last tick time, we may have to move this up
+	this.scheduleAt(this._nextSchedule());
 };
 
 //javascript setTimeout treats the parameter as signed 32bit integer and has a
@@ -83,134 +63,98 @@ Cron.prototype._after = function(timems){
 		this.timer = setTimeout(this._after.bind(this, timems - max), max);
 };
 
-Cron.prototype._tick = function(){
-	if(this.onTickCB)this.onTickCB();
-	if(this.stopped)return;    //stop might have been called in the onTickCB
-	this.lastTime = moment();
-	this.scheduleAt(this._nextSchedule());
-};
-
 Cron.prototype.scheduleAt = function(nextTime){
-	this._dbg('scheduleAt: '+nextTime.format()+ '  after: '+(nextTime.diff(moment())/1000)+' seconds [now: '+moment().format()+']');
+	console.log('scheduleAt: '+nextTime.format()+ '  after: '+(nextTime.diff(moment())/1000)+' seconds [now: '+moment().format()+']');
 	this._after(nextTime.diff(moment()));
 };
 
-Cron.prototype.stop = function(){
-	this.stopped = true;
-	clearTimeout(this.timer);
-};
 
-Cron.prototype._timeToArray = function(time){
-	if( time instanceof Array )return time;
-	return time.toArray().slice(0, 5);
-};
-
-//list is expected to be sorted (including the range expression)
-// and ranges are expected to have both elements (no 5- etc)
-//
-Cron.prototype._expandRange = function(list, idx){
-	var l = [];
-	for(var i=0; i<list.length; i++)
-		if( list[i].indexOf('-')>=0 ){
-			var range = list[i].split('-');
-			for( var y=+range[0]; y<=+range[1]; y++)
-				l.push(y);
-		}
-		else{
-			l.push(list[i]);
-		}
-
-    //to make day and month index 1 based
-    //if( idx==2 || idx==3 )l.map(function(v){return v-1;});
-	return l;
-};
-
-Cron.prototype._normalizeDatePart = function(adate, i){
-    // array constructor of moment does not bubble up out-of-range values
-    //
-	var m = moment().year(adate[0]).month(adate[1]).date(adate[2]).hour(adate[3]).minute(adate[4]);
-	return m.toArray()[i];
-};
-
-Cron.prototype.processPart = function(last, part, i, skipRepeats){
-	if( part=='*' )return '*';
-
-	last = last.slice();
-	if( part.startsWith('*/') ){
-        if(skipRepeats)return part;
-		last[i] = +last[i] + (+part.substr(2));
-		return this._normalizeDatePart(last, i);
-	}
-
-    //move to the next element in the list
-    //
-	var list=this._expandRange(part.split(','), i);
-	for(var x=0; x<list.length; x++)
-		if( last[i] < list[x] ){
-			last[i] = list[x];
-			return this._normalizeDatePart(last, i);
-		}
-
-	//bump up the next element
-    //
-	last[i] = list[0];
-	if(i>0)last[i-1] ++;
-	return this._normalizeDatePart(last, i);
-};
-
-//make a new moment object by replacing wildcards with values from
-// last tick time.
-//
-Cron.prototype._makeMoment = function(next, last){
-	for(var i=0; i<5; i++)
-		if( next[i]=='*' )next[i] = last[i];
-	return moment(next);
-};
-
-//calculate the next schedule time from last tick time and return a moment
-// object.
-//
-Cron.prototype._nextSchedule = function(){
-	var parts = this.schedule.split(' ').reverse();
-	var next = ['*', '*', '*', '*', '*'];
-	var mom, last = this._timeToArray(this.lastTime);
-
-	if( parts.length != 5 )
+Cron.prototype._parse = function(schedule){
+	var parts = schedule.split(' ');
+	if( parts.length!==5 )
 		throw new Error('Invalid schedule, 5 parts separated by space expected');
 
-	this._dbg('last: '+last);
+	//as a special case, 0 (minute) gets repeat even when there is a range
+	// defined unless it is already a repeat with different value
+	//
+	this.repeat[0] = 1;
 
-    // try the repeats, lists and ranges first
-    //
-    var skipRepeats = false;
-	for( var i=4; i>=0; i--){
-        //lists and ranges should be applied always
-		next[i] = this.processPart(last, parts[i], i, skipRepeats);
+	//find all the ranges and lists in the schedule parts
+	//
+	for(var i=0; i<5; i++){
+		if( parts[i]=='*' )
+			this.repeat[i] = 1;
+		else if( parts[i].startsWith('*/')  )
+			this.repeat[i] = +parts[i].substr(2);
+		else{
+			var list = parts[i].split(',');
 
-        //repeats should be applied only until nextTime is less than last time
-        if(!skipRepeats)
-	       skipRepeats = this._makeMoment(next.slice(), last).isAfter(this.lastTime);
+			for(var j=0; j<list.length; j++){
+                var reps  = list[j].split('/');
+                var step  = reps.length==2?+reps[1]:1;
+				var range = reps[0].split('-');
+                
+				if( range.length===1 )
+					this.ranges[i].push(+range[0]);
+				else{
+					for(var k=+range[0]; k<=+range[1]; k+=step)
+                        this.ranges[i].push(k);
+                }
+			}
+		}
 	}
-    mom = this._makeMoment(next.slice(), last);
-    if(mom.isAfter(this.lastTime))
-        return mom;
+};
 
-    // bump up the *s to the next level, one at a time
-    //
-	for(i=4; i>=0; i--)
-		if( next[i] == '*' ){
-			next[i] = +last[i]+1;
-			mom = this._makeMoment(next.slice(), last);
-			if( mom.isAfter(this.lastTime) )
-				return mom;
+Cron.prototype._makeMoment = function(adate){
+	return moment().year(adate[4]).month(adate[3]).date(adate[2]).hour(adate[1]).minute(adate[0]);
+};
+
+Cron.prototype._resetPartsToStart = function(adate, idx){
+	if( idx<0 )return;
+	for(var i=idx; i>=0; i--)
+		adate[i] = this.starts[i];
+};
+
+Cron.prototype._fixRanges = function(adate){
+	for(var i=4; i>=0; i--){
+		var range=this.ranges[i];
+
+		if( range.length===0 )continue;
+		for(var j=0; j<range.length; j++){
+			if( range[j]==adate[i])break;
+			if( range[j]> adate[i]){
+				adate[i] = range[j];
+				this._resetPartsToStart(adate, i-1);
+				break;
+			}
 		}
 
-    //unless its a singleton schedule (no *s no repeats and no ranges), this
-    // part of the code should never get executed (its more efficient to use
-    // javascript setTimeout for one time executions).
-    //
-	console.log("shouldn't come here");
-	return this._makeMoment(next, last);
+		//wrap arround if none found and fixup the previous part
+		if( j>=range.length ){
+			adate[i] = range[0];
+			if(i<4){
+				adate[i+1]++;
+				i += 2;		//backup a bit and redo list validation
+				this._resetPartsToStart(adate, i-2);
+			}
+		}
+	}
+	return this._makeMoment(adate);
+};
+
+Cron.prototype._nextSchedule = function(){
+	var mom, last = moment(this.lastTime).toArray().slice(0,5).reverse();
+
+	for(var i=0; i<5; i++){
+		if( this.repeat[i] > 0 ){
+			last[i] += this.repeat[i];
+			this._resetPartsToStart(last, i-1);
+			mom = this._fixRanges(last);
+			if( mom.isAfter(moment()) )
+				return mom;
+		}
+	}
+	throw new Error('Invalid schedule, could not move forward from '+this.lastTime.format());
 };
 
 if( exports ){

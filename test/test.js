@@ -54,5 +54,5 @@ describe('cron', function(){
 	//countTicksExact('0 0 2-3 * *', 1, 1.1*60*1000, curMoment,'second & third of every month' );
 
 	curMoment = moment({year: 2016, month: 0, date: 1, hour: 0, minute: 59, second: 55});
-	countTicksExact('1,2,3 1,2,3 * * *', 1, 4*60*60*1000, curMoment, 'multiple ranges' );
+	countTicksExact('1,2,3 1,2,3 * * *', 1, 4*60*60*1000, null, 'multiple ranges' );
 });
