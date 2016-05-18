@@ -47,6 +47,17 @@ Ex: 2,5,9-24/3 * * * * => 2,5,9,12,15,18,21,24 * * * *
         console.log('tick @'+moment().format());
     });
 
+    //called every 11th minute and does not break at the turn of hour boundary
+	// ex: 10:11:00 10:22:00 10:33:00 10:44:00 10:55:00 11:06:00 11:17:00 ...
+    var j3 = new cron.cron('*/7 * * * *', function(){
+        console.log('tick @'+moment().format());
+    });
+
+	setTimeout(function(){
+		j1.stop();
+		j2.stop();
+	}, 10*60*1000);
+
 ## Limitations
     Seconds and weeks are not supported
     Names for months are not supported yet
