@@ -60,4 +60,3 @@ Ex: 2,5,9-24/3 * * * * => 2,5,9,12,15,18,21,24 * * * *
 
 ## Limitations
     Seconds and weeks are not supported
-    Names for months are not supported yet
